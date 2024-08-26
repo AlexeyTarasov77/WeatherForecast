@@ -4,25 +4,25 @@ from django.conf import settings
 from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
-from forecast import serializers as s
+
 from forecast import api_client
 from forecast import repositories as repos
+from forecast import serializers as s
 from forecast.search_history import SearchHistory
-from forecast.service import ForecastService
-
+from forecast import service as sv
 logger = logging.getLogger(__name__)
 if settings.DEBUG:
     logger.setLevel(logging.DEBUG)
 
 
-def _get_forecast_service() -> ForecastService:
+def _get_forecast_service() -> sv.ForecastService:
     repo = repos.CitiesCountRepository()
     client = api_client.OpenMeteoApiClient()
-    return ForecastService(repo=repo, logger=logger, api_client=client)
+    return sv.ForecastService(repo=repo, logger=logger, api_client=client)
 
 
 @api_view(["GET"])
-def get_forecast_view(request) -> Response:
+def forecast_view(request) -> Response:
     service = _get_forecast_service()
     err_response = {"error": "Can't get forecast. Please try again later."}
     city_name = request.GET.get("city_name")
@@ -50,7 +50,7 @@ def get_forecast_view(request) -> Response:
 
 @api_view(["GET"])
 def history_view(request) -> Response:
-    return Response(SearchHistory(request).history)
+    return Response(SearchHistory(request)._history)
 
 
 @api_view(["GET"])
@@ -66,3 +66,19 @@ def cities_count_view(request) -> Response:
         )
     serializer = s.CitiesCountSerializer(res, many=True)
     return Response(serializer.data)
+
+
+@api_view(["GET"])
+def last_viewed_city_view(request) -> Response:
+    service = _get_forecast_service()
+    try:
+        res = service.get_last_viewed_city(SearchHistory(request))
+    except sv.NotFoundError:
+        return Response({"last_viewed_city": ""}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        logger.exception("last_viewed_city: %s", e)
+        return Response(
+            {"error": "Can't get last viewed city. Please try again later."},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+    return Response({"last_viewed_city": res})

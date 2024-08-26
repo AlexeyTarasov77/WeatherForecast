@@ -22,6 +22,7 @@ class ApiClientInterface(t.Protocol):
 
 class ForecastServiceError: ...
 
+class NotFoundError(ForecastServiceError): ...
 
 class ForecastService:
     def __init__(
@@ -53,3 +54,11 @@ class ForecastService:
 
     def get_cities_count(self):
         return self.repo.get_all()
+
+    def get_last_viewed_city(self, history: SearchHistory) -> str:
+        try:
+            res = history[-1]
+        except IndexError as e:
+            self.logger.info("Attempt to get last viewed city, but history is empty")
+            raise NotFoundError from e
+        return res
