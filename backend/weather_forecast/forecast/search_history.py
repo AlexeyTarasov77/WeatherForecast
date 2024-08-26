@@ -1,8 +1,10 @@
+import typing as t
+
 from django.conf import settings
 from django.http import HttpRequest
 
 
-class History:
+class SearchHistory:
     def __init__(self, request: HttpRequest) -> None:
         self.session = request.session
         history: list | None = self.session.get(settings.FORECAST_HISTORY_SESSION_KEY)
@@ -19,5 +21,5 @@ class History:
     def save(self):
         self.session.modified = True
 
-    def __iter__(self):
+    def __iter__(self) -> t.Iterator:
         return iter(self.history)
