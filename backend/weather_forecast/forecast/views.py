@@ -4,7 +4,7 @@ from django.conf import settings
 from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
-
+from forecast import serializers as s
 from forecast import api_client
 from forecast import repositories as repos
 from forecast.search_history import SearchHistory
@@ -51,3 +51,18 @@ def get_forecast_view(request) -> Response:
 @api_view(["GET"])
 def history_view(request) -> Response:
     return Response(SearchHistory(request).history)
+
+
+@api_view(["GET"])
+def cities_count_view(request) -> Response:
+    service = _get_forecast_service()
+    try:
+        res = service.get_cities_count()
+    except Exception as e:
+        logger.exception("cities_count_view: %s", e)
+        return Response(
+            {"error": "Can't get cities count. Please try again later."},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+    serializer = s.CitiesCountSerializer(res, many=True)
+    return Response(serializer.data)

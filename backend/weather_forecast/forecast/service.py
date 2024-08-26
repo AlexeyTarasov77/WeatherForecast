@@ -4,11 +4,14 @@ import typing as t
 import pandas as pd
 
 from forecast import api_client as client
+from forecast import models
 from forecast.search_history import SearchHistory
 
 
 class RepoInterface(t.Protocol):
     def add_or_update(self, city_name: str) -> None: ...
+
+    def get_all(self) -> list[models.CitiesCount]: ...
 
 
 class ApiClientInterface(t.Protocol):
@@ -47,3 +50,6 @@ class ForecastService:
         history.add(city_name)
         self.repo.add_or_update(city_name)
         return forecast
+
+    def get_cities_count(self):
+        return self.repo.get_all()
