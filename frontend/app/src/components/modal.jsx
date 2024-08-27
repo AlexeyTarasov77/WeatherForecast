@@ -9,10 +9,8 @@
  */
 
 import clsx from "clsx";
-import { createPortal } from "react-dom";
 
 export function UiModal({ width = "md", className, children, isOpen = false, onClose }) {
-
   const handleClick = (event) => {
     if (!event.target.closest('[data-id="modal"]')) {
         onClose();
@@ -25,7 +23,7 @@ export function UiModal({ width = "md", className, children, isOpen = false, onC
     <div className={clsx("fixed inset-0 bg-slate-900/60 backdrop-blur overflow-y-auto", className)} onClick={handleClick}>
       <div
         className={clsx(
-          "flex flex-col rounded-lg min-h-80 bg-white mt-12 shadow-md mx-auto relative",
+          "flex flex-col rounded-lg bg-white mt-12 shadow-md mx-auto relative",
           {
             md: "max-w-[640px] w-full",
             full: "mx-5",
@@ -46,7 +44,7 @@ export function UiModal({ width = "md", className, children, isOpen = false, onC
       </div>
     </div>
   );
-  return createPortal(modal, document.getElementById("modals"));
+  return modal;
 }
 
 UiModal.Header = function UiModalHeader({ children, className }) {

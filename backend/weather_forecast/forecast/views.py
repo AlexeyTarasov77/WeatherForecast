@@ -8,8 +8,9 @@ from rest_framework.response import Response
 from forecast import api_client
 from forecast import repositories as repos
 from forecast import serializers as s
-from forecast.search_history import SearchHistory
 from forecast import service as sv
+from forecast.search_history import SearchHistory
+
 logger = logging.getLogger(__name__)
 if settings.DEBUG:
     logger.setLevel(logging.DEBUG)
