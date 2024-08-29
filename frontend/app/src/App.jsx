@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Layout } from './components/layout'
-import { UiFieldInput, UiModal, UiButton, WeatherItem } from './components'
+import { UiFieldInput, UiModal, UiButton, WeatherItem, Autocomplete } from './components'
 import axios from 'axios'
 
 
@@ -73,14 +73,42 @@ export default function App() {
     return formattedData;
   };
 
+  const getCitiesCompletions = (query) => {
+    const url = new URL("https://api.thecompaniesapi.com/v1/locations/cities");
+    url.search = new URLSearchParams({ token: 'fUrFHu1E', search: query, size: 5 }).toString();
+
+    return fetch(url)  // Возвращаем промис
+    .then((resp) => resp.json())
+    .then((data) => {
+        const cities = [];
+        data.cities.forEach(city => {
+            cities.push({cityName: city.name, countryName: city.country.name});
+        });
+        return cities;  // Возвращаем массив после заполнения
+    });
+};
+
+
+  const showCitiesCompletions = (complition, inpValue) => {
+    return (
+        <>
+          <p className='text-lg'>
+            <strong>{complition.cityName.substr(0, inpValue.length)}</strong>
+            { complition.cityName.substr(inpValue.length) }
+          </p>
+          <p>{complition.countryName}</p>
+        </>
+    )
+  }
+
   const form = (
     <form onSubmit={handleFormSubmit} className='flex flex-col items-center'>
-      <UiFieldInput
-        className={"mb-4"}
-        placeholder="Ваш город"
-        id="city"
-        name="city_name"
-        required
+      <Autocomplete
+       getMatchesCallback={getCitiesCompletions} 
+       showMatchesCallback={showCitiesCompletions}
+       suggestionResolver={(suggestion) => suggestion.cityName}
+       className={"mb-4"}
+       inputProps={{ name: 'city_name', placeholder: 'Город', required: true }}
       />
       <UiButton variant="primary" size="lg" disabled={Boolean(error)}>
         Отправить
