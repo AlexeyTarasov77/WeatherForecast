@@ -1,7 +1,7 @@
 import logging
 
 from django.conf import settings
-from rest_framework import status
+from rest_framework import generics, status, viewsets
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
@@ -9,6 +9,7 @@ from forecast import api_client
 from forecast import repositories as repos
 from forecast import serializers as s
 from forecast import service as sv
+from forecast.models import CitiesCount
 from forecast.search_history import SearchHistory
 
 logger = logging.getLogger(__name__)
@@ -49,24 +50,33 @@ def forecast_view(request) -> Response:
     return Response(forecast)
 
 
-@api_view(["GET"])
-def history_view(request) -> Response:
-    return Response(SearchHistory(request)._history)
-
-
-@api_view(["GET"])
-def cities_count_view(request) -> Response:
+class CitiesCountView(generics.ListAPIView):
+    serializer_class = s.CitiesCountSerializer
     service = _get_forecast_service()
-    try:
-        res = service.get_cities_count()
-    except Exception as e:
-        logger.exception("cities_count_view: %s", e)
-        return Response(
-            {"error": "Can't get cities count. Please try again later."},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        )
-    serializer = s.CitiesCountSerializer(res, many=True)
-    return Response(serializer.data)
+
+    def get_queryset(self) -> Response | list[CitiesCount]:
+        try:
+            res = self.service.get_cities_count()
+        except Exception as e:
+            logger.exception("cities_count_view: %s", e)
+            return Response(
+                {"error": "Can't get cities count. Please try again later."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+        return res
+
+
+cities_count_view = CitiesCountView.as_view()
+
+
+class HistoryView(generics.ListAPIView):
+    serializer_class = s.HistorySerializer
+
+    def get_queryset(self) -> list[str]:
+        return list(SearchHistory(self.request))
+
+
+history_view = HistoryView.as_view()
 
 
 @api_view(["GET"])

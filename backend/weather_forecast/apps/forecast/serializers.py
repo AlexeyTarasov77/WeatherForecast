@@ -7,3 +7,7 @@ class CitiesCountSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.CitiesCount
         fields = ("name", "count")
+
+
+class HistorySerializer(serializers.Serializer):
+    city_name = serializers.CharField()

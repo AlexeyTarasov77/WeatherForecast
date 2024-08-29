@@ -30,4 +30,4 @@ class SearchHistory:
         self.session.modified = True
 
     def __iter__(self) -> t.Iterator:
-        return iter(self._history)
+        return iter([{"city_name": city} for city in self._history])
