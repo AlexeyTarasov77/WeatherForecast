@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { UiFieldInput } from "./text-input";
 import clsx from "clsx";
+import { ListItem, UiFieldInput } from "./";
 
 
 export function Autocomplete({completions=null, getMatchesCallback=null, showMatchesCallback=null, suggestionResolver=null, className, inputProps}) {    
@@ -56,13 +56,9 @@ export function Autocomplete({completions=null, getMatchesCallback=null, showMat
                     {suggestions.map((suggestion, index) => {
                         let suggestionValue = resolveSuggestion(suggestion)
                         return (
-                            <li
-                                className="border-b transition-colors p-2 rounded hover:bg-slate-300"
-                                key={index}
-                                onClick={() => handleSuggestionClick(suggestionValue)}
-                            >
+                            <ListItem key={index} onClick={() => handleSuggestionClick(suggestionValue)}>
                                 {showMatchesCallback ? showMatchesCallback(suggestion, inputValue) : suggestionValue}
-                            </li>
+                            </ListItem>
                         );
                     })}
                 </ul>

@@ -1,16 +1,16 @@
 import { useEffect, useState } from 'react';
+import HistoryIcon from './assets/recent-icon.svg?react';
 import { Layout } from './components/layout'
-import { UiFieldInput, UiModal, UiButton, WeatherItem, Autocomplete } from './components'
+import { UiFieldInput, UiModal, UiButton, WeatherItem, Autocomplete, ListItem } from './components'
 import axios from 'axios'
 
 
 export default function App() {
-  console.log('rerender');
-  
   const serverURL = 'http://localhost:8000'
   const [weatherData, setWeatherData] = useState(null);
   const [error, setError] = useState(null);
   const [lastViewedCity, setLastViewedCity] = useState(null);
+  const [searchHistory, setSearchHistory] = useState(null);
 
   const getLastViewedCity = async () => {
     await axios.get(serverURL + '/forecast/last-viewed-city/', {withCredentials: true})
@@ -45,6 +45,17 @@ export default function App() {
     });
   }
 
+  const getSearchHistory = async () => {
+    await axios.get(serverURL + '/forecast/search-history/', {withCredentials: true})
+    .then((resp) => {
+      setSearchHistory(resp.data);
+    })
+    .catch((err) => {
+      console.error(err);
+      setSearchHistory(null);
+    });
+  }
+
   const handleFormSubmit = async (e) => {
     e.preventDefault()
     const data = new FormData(e.target)
@@ -73,7 +84,7 @@ export default function App() {
     return formattedData;
   };
 
-  const getCitiesCompletions = (query) => {
+  const getCitiesCompletions = async (query) => {
     const url = new URL("https://api.thecompaniesapi.com/v1/locations/cities");
     url.search = new URLSearchParams({ token: 'fUrFHu1E', search: query, size: 5 }).toString();
 
@@ -91,29 +102,55 @@ export default function App() {
 
   const showCitiesCompletions = (complition, inpValue) => {
     return (
-        <>
+        <div>
           <p className='text-lg'>
             <strong>{complition.cityName.substr(0, inpValue.length)}</strong>
             { complition.cityName.substr(inpValue.length) }
           </p>
           <p>{complition.countryName}</p>
-        </>
+        </div>
     )
   }
 
   const form = (
-    <form onSubmit={handleFormSubmit} className='flex flex-col items-center'>
-      <Autocomplete
-       getMatchesCallback={getCitiesCompletions} 
-       showMatchesCallback={showCitiesCompletions}
-       suggestionResolver={(suggestion) => suggestion.cityName}
-       className={"mb-4"}
-       inputProps={{ name: 'city_name', placeholder: 'Город', required: true }}
-      />
-      <UiButton variant="primary" size="lg" disabled={Boolean(error)}>
-        Отправить
-      </UiButton>
-    </form>
+      <form onSubmit={handleFormSubmit} className='flex flex-col items-center' autoComplete="off">
+        <div>
+          <Autocomplete
+           getMatchesCallback={getCitiesCompletions}
+           showMatchesCallback={showCitiesCompletions}
+           suggestionResolver={(suggestion) => suggestion.cityName}
+           className={"mb-4"}
+           inputProps={{ name: 'city_name', placeholder: 'Город', required: true, onFocus: (e) => {
+            const ul = e.target.closest('form').querySelector('ul#search-history')
+            ul.classList.remove('hidden')
+            getSearchHistory()
+           }}}
+          />
+          <ul className='bg-white' id="search-history">
+            {searchHistory?.results && searchHistory.results.map((obj, index) => {
+              return (
+                <ListItem key={index} onClick={(e) => {
+                  const ul = e.target.closest('ul#search-history')
+                  ul.classList.remove('hidden')
+                  if (obj.city_name !== weatherData?.city) {
+                    ul.classList.add('hidden')
+                    const input = ul.parentNode.querySelector('input[name="city_name"]')
+                    input.value = obj.city_name
+                    getForecastByCity(obj.city_name)
+                    console.log("setted input value and got forecast");
+                  }
+                }}>
+                  {obj.city_name} <span className='ml-2'><HistoryIcon width="16" height="16"/></span>
+                </ListItem>
+              )
+            })}
+          </ul>
+        </div>
+        <UiButton variant="primary" size="lg" disabled={Boolean(error)}>
+          Посмотреть погоду
+        </UiButton>
+      </form>
+
   )
   
   const modal = (
@@ -136,13 +173,6 @@ export default function App() {
     </UiModal>
   )
 
-  // useEffect(() => {
-  //   console.log('lastViewedCity', lastViewedCity);
-    
-  //   if (!lastViewedCity) {
-  //     (async () => await getLastViewedCity())()
-  //   }
-  // }, [lastViewedCity]);
   useEffect(() => {
     (async () => await getLastViewedCity())()
   }, [])
