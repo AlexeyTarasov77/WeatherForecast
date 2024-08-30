@@ -36,10 +36,22 @@ class ForecastService:
         self.logger = logger
         self.client = api_client
 
-    def get_forecast(self, city_name: str, forecast_days: int, history: SearchHistory) -> pd.DataFrame:
+    def get_forecast(
+        self,
+        forecast_days: int,
+        history: SearchHistory,
+        city_name: str | None = None,
+        coords: dict[str, str] | None = None,
+    ) -> tuple[pd.DataFrame, str]:
+        if not city_name and not coords:
+            raise Exception("Either city_name or coords must be provided")
         try:
             try:
-                geo_data = self.client.get_geodata_by_city(city_name)
+                if coords is not None:
+                    geo_data = client.GeoData(**coords)
+                    city_name = city_name or geo_data.get_location()["city"]
+                else:
+                    geo_data = self.client.get_geodata_by_city(city_name)
             except client.CoordinatesNotFoundError:
                 self.logger.warning("get_forecast_view.CoordinatesNotFound")
                 raise
@@ -52,7 +64,7 @@ class ForecastService:
             raise
         history.add(city_name)
         self.repo.add_or_update(city_name)
-        return forecast
+        return forecast, city_name
 
     def get_cities_count(self):
         return self.repo.get_all()

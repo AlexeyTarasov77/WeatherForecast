@@ -5,6 +5,7 @@ import openmeteo_requests
 import pandas as pd
 import requests
 import requests_cache
+from geopy.geocoders import Nominatim
 from retry_requests import retry
 
 logger = logging.getLogger(__name__)
@@ -37,7 +38,12 @@ class CoordinatesNotFoundError(GettingCoordinatesError):
 class GeoData(NamedTuple):
     latitude: float
     longitude: float
-    timezone: str
+    timezone: str = "UTC"
+
+    def get_location(self):
+        geolocator = Nominatim(user_agent="weatherApp")
+        location = geolocator.reverse(f"{self.latitude},{self.longitude}", language="en")
+        return location.raw["address"]
 
 
 class OpenMeteoApiClient:
