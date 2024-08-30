@@ -33,14 +33,26 @@ export default function App() {
   const getForecastByCity = async (cityName) => {
     await axios.get(serverURL + '/forecast/', { params: { city_name: cityName }, withCredentials: true })
     .then((resp) => {
-      console.log(resp.data); 
-      resp.data.city = cityName
       setWeatherData(resp.data)
       setError(null);
     })
     .catch((err) => {
       console.error(err);
-      setError('Error fetching weather data, try again later');
+      setError('Произошла ошибка при получении данных о погоде, пожалуйста попробуйте позже');
+      setWeatherData(null);
+    });
+  }
+
+  const getForecastByCoords = async (coordinates) => {
+    await axios.get(serverURL + '/forecast/', { params: { lat: coordinates.latitude, lon: coordinates.longitude }, withCredentials: true })
+    .then((resp) => {
+      console.log(resp.data); 
+      setWeatherData(resp.data)
+      setError(null);
+    })
+    .catch((err) => {
+      console.error(err);
+      setError('Произошла ошибка при получении данных о погоде, пожалуйста попробуйте позже');
       setWeatherData(null);
     });
   }
@@ -168,6 +180,17 @@ export default function App() {
           }}
         >
           Да
+        </UiButton>
+        <UiButton variant='primary' onClick={() => {
+          setLastViewedCity(null)
+          const successCallback = (position) => getForecastByCoords(position.coords)
+          const errorCallback = (err) => {
+            setError("Can't get your location")
+            console.error(err)
+          }
+          navigator.geolocation.getCurrentPosition(successCallback, errorCallback)
+        }}>
+          Посмотреть погоду по моей текущей геолокации
         </UiButton>
       </UiModal.Footer>
     </UiModal>
