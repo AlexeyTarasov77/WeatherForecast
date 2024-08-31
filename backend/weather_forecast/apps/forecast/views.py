@@ -35,11 +35,6 @@ def forecast_view(request) -> Response:
         return Response(
             {"error": "Either city_name or coords must be provided"}, status=status.HTTP_400_BAD_REQUEST
         )
-    if coords is None:
-        return Response(
-            {"error": "Invalid coords, (should be provided both lat and lon)."},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
     try:
         forecast, city = service.get_forecast(forecast_days, SearchHistory(request), city_name, coords)
     except api_client.CoordinatesNotFoundError:
