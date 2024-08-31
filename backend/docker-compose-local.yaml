@@ -1,0 +1,28 @@
+volumes:
+  redis_data:
+
+
+services:
+  web:
+    container_name: weatherapp-web
+    build: .
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env.local
+    depends_on:
+      - redis
+  redis:
+    container_name: weatherapp-redis
+    image: redis:7
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 10s
+      retries: 3

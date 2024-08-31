@@ -2,19 +2,17 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-ENV POETRY_HOME=/opt/poetry
-ENV PATH=${POETRY_HOME}/bin:${PATH}
-
-ENV PYTHONDONTWRITEBYTECODE 1
-ENV PYTHONUNBUFFERED 1 
+ENV POETRY_HOME=/opt/poetry \
+    PATH=${POETRY_HOME}/bin:${PATH} \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \ 
+    POETRY_VIRTUALENVS_CREATE=false
 
 COPY poetry.lock pyproject.toml ./
 
 RUN pip install poetry && pip install gunicorn
 
-RUN poetry config virtualenvs.in-project true
-
-RUN poetry install --no-root --no-dev 
+RUN poetry config virtualenvs.create false && poetry install --no-root --no-dev 
 
 COPY . .
 
@@ -26,8 +24,10 @@ RUN chown -R weather_forecast ./weather_forecast
 
 USER weather_forecast
 
+RUN chmod 777 /app/weather_forecast/entrypoint.sh
+
 WORKDIR /app/weather_forecast
 
 ENTRYPOINT [ "poetry", "run" ]
 
-CMD [ "gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000" ]
+CMD ["/bin/sh", "/app/weather_forecast/entrypoint.sh"]

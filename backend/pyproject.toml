@@ -18,6 +18,7 @@ openmeteo-requests = "^1.2.0"
 retry-requests = "^2.0.0"
 django-cors-headers = "^4.4.0"
 geopy = "^2.4.1"
+redis = "^5.0.8"
 
 
 [build-system]
