@@ -1,31 +1,21 @@
-import logging
 
-from django.conf import settings
-from rest_framework import generics, status, viewsets
+from rest_framework import generics, status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
 from forecast import api_client
-from forecast import repositories as repos
+from forecast import dependecies as deps
 from forecast import serializers as s
-from forecast import service as sv
+from forecast.domain import service as sv
 from forecast.models import CitiesCount
 from forecast.search_history import SearchHistory
 
-logger = logging.getLogger(__name__)
-if settings.DEBUG:
-    logger.setLevel(logging.DEBUG)
-
-
-def _get_forecast_service() -> sv.ForecastService:
-    repo = repos.CitiesCountRepository()
-    client = api_client.OpenMeteoApiClient()
-    return sv.ForecastService(repo=repo, logger=logger, api_client=client)
+logger = deps.get_logger(__name__)
 
 
 @api_view(["GET"])
 def forecast_view(request) -> Response:
-    service = _get_forecast_service()
+    service = deps.get_forecast_service()
     err_response = {"error": "Can't get forecast. Please try again later."}
     city_name = request.GET.get("city_name")
     lat, lon = request.GET.get("lat"), request.GET.get("lon")
@@ -54,7 +44,7 @@ def forecast_view(request) -> Response:
 
 class CitiesCountView(generics.ListAPIView):
     serializer_class = s.CitiesCountSerializer
-    service = _get_forecast_service()
+    service = deps.get_forecast_service()
 
     def get_queryset(self) -> Response | list[CitiesCount]:
         try:
@@ -83,7 +73,7 @@ history_view = HistoryView.as_view()
 
 @api_view(["GET"])
 def last_viewed_city_view(request) -> Response:
-    service = _get_forecast_service()
+    service = deps.get_forecast_service()
     try:
         res = service.get_last_viewed_city(SearchHistory(request))
     except sv.NotFoundError:
