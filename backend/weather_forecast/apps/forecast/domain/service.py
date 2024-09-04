@@ -66,7 +66,7 @@ class ForecastService:
         self.repo.add_or_update(city_name)
         return forecast, city_name
 
-    def get_cities_count(self):
+    def get_cities_count(self) -> list[dm.CitiesCountDTO]:
         return self.repo.get_all()
 
     def get_last_viewed_city(self, history: SearchHistory) -> str:

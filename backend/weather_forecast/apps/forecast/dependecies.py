@@ -7,10 +7,11 @@ from forecast import repositories as repos
 from forecast.domain import service
 
 
-def get_logger(name):
+def get_logger(name) -> logging.Logger:
     logger = logging.getLogger(name)
     if settings.DEBUG:
         logger.setLevel(logging.DEBUG)
+    return logger
 
 
 def get_forecast_service(logger_name: str = "forecast_service") -> service.ForecastService:
