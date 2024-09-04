@@ -79,19 +79,16 @@ export default function App() {
 
   const formatWeatherData = (data) => {
     const formattedData = [];
-    const dates = data.daily.date;
-    const temperatureMins = data.daily.temperature_2m_min;
-    const temperatureMaxs = data.daily.temperature_2m_max;
-    const rainSums = data.daily.rain_sum;
+    const daily = data.daily
 
-    for (let i = 0; i < Object.keys(dates).length; i++) {
+    for (const [date, forecast] of Object.entries(daily)) {
       formattedData.push({
-        date: new Date(dates[i]),
-        temperatureMin: temperatureMins[i],
-        temperatureMax: temperatureMaxs[i],
-        rainSum: rainSums[i],
+        date: new Date(date),
+        ...forecast
       });
     }
+    console.log(formattedData);
+    
 
     return formattedData;
   };
@@ -114,13 +111,15 @@ export default function App() {
 
   const showCitiesCompletions = (complition, inpValue) => {
     return (
-        <div>
-          <p className='text-lg'>
-            <strong>{complition.cityName.substr(0, inpValue.length)}</strong>
-            { complition.cityName.substr(inpValue.length) }
-          </p>
-          <p>{complition.countryName}</p>
-        </div>
+        complition.cityName && complition.countryName ? (
+          <div>
+            <p className='text-lg'>
+              <strong>{complition.cityName.substr(0, inpValue.length)}</strong>
+              { complition.cityName.substr(inpValue.length) }
+            </p>
+            <p>{complition.countryName}</p>
+          </div>
+        ) : "No matches found"
     )
   }
 
