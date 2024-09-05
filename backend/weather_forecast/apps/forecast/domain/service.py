@@ -1,8 +1,6 @@
 import logging
 import typing as t
 
-import pandas as pd
-
 from forecast import api_client as client
 from forecast.domain import models as dm
 from forecast.search_history import SearchHistory
@@ -14,12 +12,6 @@ class RepoInterface(t.Protocol):
     def get_all(self) -> list[dm.CitiesCountDTO]: ...
 
 
-class ApiClientInterface(t.Protocol):
-    def get_forecast(self, city_name: str, forecast_days: int) -> pd.DataFrame: ...
-
-    def get_geodata_by_city(self, query: str) -> client.GeoData: ...
-
-
 class ForecastServiceError(Exception): ...
 
 
@@ -27,8 +19,10 @@ class NotFoundError(ForecastServiceError): ...
 
 
 class ForecastService:
+    type ForecastData = dict[str, dict[str, t.Any]]
+
     def __init__(
-        self, repo: RepoInterface, logger: logging.Logger | None, api_client: ApiClientInterface
+        self, repo: RepoInterface, logger: logging.Logger | None, api_client: client.AbstractApiClient
     ) -> None:
         self.repo = repo
         if logger is None:
@@ -42,9 +36,9 @@ class ForecastService:
         history: SearchHistory,
         city_name: str | None = None,
         coords: dict[str, str] | None = None,
-    ) -> tuple[pd.DataFrame, str]:
+    ) -> tuple[ForecastData, str]:
         if not city_name and not coords:
-            raise Exception("Either city_name or coords must be provided")
+            raise ForecastServiceError("Either city_name or coords must be provided")
         try:
             try:
                 if coords is not None:

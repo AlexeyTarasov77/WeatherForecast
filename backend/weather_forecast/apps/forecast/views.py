@@ -36,6 +36,13 @@ def forecast_view(request) -> Response:
             {"error": f"Can't get coordinates for city {city_name}. Please try again later."},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
+    except sv.ForecastServiceError as e:
+        logger.exception("get_forecast_view: %s", e)
+        try:
+            msg = e.args[0]
+        except IndexError:
+            msg = err_response["error"]
+        return Response({"error": msg}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     except (api_client.ForecastApiError, Exception) as e:
         logger.exception("get_forecast_view: %s", e)
         return Response(err_response, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

@@ -1,5 +1,7 @@
+import abc
 import logging
-from typing import NamedTuple
+import typing as t
+from datetime import datetime
 
 import requests
 import requests_cache
@@ -33,7 +35,7 @@ class CoordinatesNotFoundError(GettingCoordinatesError):
     pass
 
 
-class GeoData(NamedTuple):
+class GeoData(t.NamedTuple):
     latitude: float
     longitude: float
     timezone: str = "UTC"
@@ -44,12 +46,43 @@ class GeoData(NamedTuple):
         return location.raw["address"]
 
 
-class OpenMeteoApiClient:
-    def __init__(self, session_expire_after: int = 3600, retries: int = 5) -> None:
-        self.FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
-        self.GEODATA_URL = "https://geocoding-api.open-meteo.com/v1/search"
+class AbstractApiClient(abc.ABC):
+    def __init__(
+        self,
+        forecast_url: str,
+        geodata_url: str,
+        session_expire_after: int = 3600,
+        retries: int = 5,
+        logger: logging.Logger | None = None,
+    ) -> None:
+        self.FORECAST_URL = forecast_url
+        self.GEODATA_URL = geodata_url
         self.session = requests_cache.CachedSession(".cache", expire_after=session_expire_after)
         self.retry_session = retry(self.session, retries=retries, backoff_factor=0.2)
+        if logger is None:
+            logger = logging.getLogger(__name__)
+        self.logger = logger
+
+    @abc.abstractmethod
+    def get_forecast(self, geo_data: GeoData, **kwargs) -> dict[str, dict[str, t.Any]]:
+        pass
+
+    @abc.abstractmethod
+    def get_geodata_by_city(self, query: str) -> GeoData:
+        pass
+
+
+class OpenMeteoApiClient(AbstractApiClient):
+    def __init__(
+        self, session_expire_after: int = 3600, retries: int = 5, logger: logging.Logger = None
+    ) -> None:
+        super().__init__(
+            "https://api.open-meteo.com/v1/forecast",
+            "https://geocoding-api.open-meteo.com/v1/search",
+            session_expire_after,
+            retries,
+            logger,
+        )
 
     def get_geodata_by_city(self, query: str) -> GeoData:
         # response = openmeteo.weather_api(GEODATA_URL, {"name": query, "count": 1})[0]
@@ -71,54 +104,71 @@ class OpenMeteoApiClient:
         logger.debug("get_geodata_by_city, data: %s", data)
         return GeoData(latitude=data["latitude"], longitude=data["longitude"], timezone=data["timezone"])
 
+    def _process_forecast_response(self, resp_data: dict[str, t.Any]) -> dict:
+        daily: dict = resp_data["daily"]
+        hourly: dict = resp_data["hourly"]
+        daily_data = {}
+
+        def compute_value_with_units(val, units: dict, key: str) -> float:
+            try:
+                if key in units:
+                    return {
+                        "val": val,
+                        "unit": units[key],
+                    }
+                return val
+            except IndexError:
+                pass
+
+        for i, date in enumerate(daily["time"]):
+            daily_data[date] = {"hourly": {}}
+            for key, vals in daily.items():
+                daily_data[date][key] = compute_value_with_units(
+                    vals[i], resp_data.get("daily_units", {}), key
+                )
+            hourly_indices_for_date = [
+                i
+                for i, dt in enumerate(hourly["time"])
+                if datetime.fromisoformat(dt).date() == datetime.fromisoformat(date).date()
+            ]
+            for i in hourly_indices_for_date:
+                time_key = hourly["time"][i]
+                hourly_data = daily_data[date]["hourly"]
+                hourly_data[time_key] = {}
+                for key, vals in hourly.items():
+                    hourly_data[time_key][key] = compute_value_with_units(
+                        vals[i], resp_data.get("hourly_units", {}), key
+                    )
+        return daily_data
+
+    def _get_forecast_response(self, geo_data: GeoData, **kwargs) -> dict:
+        response = self.retry_session.get(
+            self.FORECAST_URL,
+            {
+                **geo_data._asdict(),
+                "hourly": ["temperature_2m", "rain"],
+                "daily": [
+                    "temperature_2m_max",
+                    "temperature_2m_min",
+                    "rain_sum",
+                    "precipitation_probability_max",
+                    "apparent_temperature_max",
+                    "apparent_temperature_min",
+                ],
+                **kwargs,
+            },
+        )
+        return response.json()
+
     def get_forecast(self, geo_data: GeoData, **kwargs) -> dict:
         try:
-            response = self.retry_session.get(
-                self.FORECAST_URL,
-                {
-                    **geo_data._asdict(),
-                    "hourly": ["temperature_2m", "rain"],
-                    "daily": [
-                        "temperature_2m_max",
-                        "temperature_2m_min",
-                        "rain_sum",
-                        "precipitation_probability_max",
-                        "apparent_temperature_max",
-                        "apparent_temperature_min",
-                    ],
-                    **kwargs,
-                },
-            )
-            resp_data = response.json()
+            resp_data = self._get_forecast_response(geo_data, **kwargs)
         except Exception as e:
             logger.error("get_forecast: %s", e)
             raise GettingForecastError from e
         try:
-            # TODO: add data processing for hourly forecast
-            daily: dict = resp_data["daily"]
-            hourly: dict = resp_data["hourly"]
-            daily_data = {}
-            hourly_data = {}
-            for i, date in enumerate(daily["time"]):
-
-                daily_data[date] = {}
-                for key, val in daily.items():
-                    print(i, val[i])
-                    try:
-                        if key in (units := resp_data.get("daily_units", {})):
-                            daily_data[date][key] = {
-                                "val": val[i],
-                                "unit": units[key],
-                            }
-                        else:
-                            daily_data[date][key] = val[i]
-                    except IndexError:
-                        pass
-            data = {
-                "hourly": hourly_data,
-                "daily": daily_data,
-            }
+            data = self._process_forecast_response(resp_data)
         except Exception as e:
             logger.exception("get_forecast Unexpected error: %s", e)
             raise ParsingForecastError from e
-        return data
+        return {"daily": data}
