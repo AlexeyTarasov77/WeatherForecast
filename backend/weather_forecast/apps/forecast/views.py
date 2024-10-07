@@ -1,3 +1,4 @@
+from pprint import pprint
 
 from rest_framework import generics, status
 from rest_framework.decorators import api_view
@@ -13,10 +14,13 @@ from forecast.search_history import SearchHistory
 logger = deps.get_logger(__name__)
 
 
-@api_view(["GET"])
+@api_view()
 def forecast_view(request) -> Response:
     service = deps.get_forecast_service()
-    err_response = {"error": "Can't get forecast. Please try again later."}
+    server_err_response = Response(
+        {"error": "Can't get forecast. Please try again later."},
+        status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+    )
     city_name = request.GET.get("city_name")
     lat, lon = request.GET.get("lat"), request.GET.get("lon")
     coords = {"latitude": lat, "longitude": lon} if lat and lon else None
@@ -38,15 +42,12 @@ def forecast_view(request) -> Response:
         )
     except sv.ForecastServiceError as e:
         logger.exception("get_forecast_view: %s", e)
-        try:
-            msg = e.args[0]
-        except IndexError:
-            msg = err_response["error"]
+        msg = e.args[0] if len(e.args) > 0 else server_err_response.data
         return Response({"error": msg}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     except (api_client.ForecastApiError, Exception) as e:
         logger.exception("get_forecast_view: %s", e)
-        return Response(err_response, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    return Response({**forecast, "city": city})
+        return server_err_response
+    return Response({"forecast": forecast, "city": city})
 
 
 class CitiesCountView(generics.ListAPIView):
@@ -78,7 +79,7 @@ class HistoryView(generics.ListAPIView):
 history_view = HistoryView.as_view()
 
 
-@api_view(["GET"])
+@api_view()
 def last_viewed_city_view(request) -> Response:
     service = deps.get_forecast_service()
     try:
