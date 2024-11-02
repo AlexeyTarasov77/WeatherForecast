@@ -26,5 +26,4 @@ class WeatherDataPerDay:
     temp_min: amount
     temp_max: amount
     rain_sum: amount
-    precipitation_probability: amount  # in %
-    hourly: dict[str, WeatherDataPerHour]
+    precipitation_probability: amount

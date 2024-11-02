@@ -6,7 +6,7 @@ from forecast.domain import models as dm
 
 
 class CitiesCountRepositorySQL:
-    def add_or_update(self, city_name: str) -> None:
+    def create_or_incr(self, city_name: str) -> None:
         with transaction.atomic():
             try:
                 city = models.CitiesCount.objects.select_for_update().get(name=city_name)
@@ -25,7 +25,7 @@ class CitiesCountRepositoryRedis:
     def __init__(self) -> None:
         self.db = redis_conn
 
-    def add_or_update(self, city_name: str) -> None:
+    def create_or_incr(self, city_name: str) -> None:
         self.db.hincrby("cities_count", city_name, 1)
 
     def get_all(self) -> list[dm.CitiesCountDTO]:

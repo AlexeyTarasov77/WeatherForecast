@@ -1,7 +1,9 @@
-from pprint import pprint
+from dataclasses import asdict
+from datetime import datetime
 
 from rest_framework import generics, status
 from rest_framework.decorators import api_view
+from rest_framework.request import Request
 from rest_framework.response import Response
 
 from forecast import api_client
@@ -15,39 +17,73 @@ logger = deps.get_logger(__name__)
 
 
 @api_view()
-def forecast_view(request) -> Response:
+def daily_forecast_view(request: Request) -> Response:
     service = deps.get_forecast_service()
-    server_err_response = Response(
-        {"error": "Can't get forecast. Please try again later."},
-        status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-    )
-    city_name = request.GET.get("city_name")
-    lat, lon = request.GET.get("lat"), request.GET.get("lon")
-    coords = {"latitude": lat, "longitude": lon} if lat and lon else None
-    forecast_days = int(request.GET.get("forecast_days", 7))
-    if not city_name and not coords:
+    location = request.query_params.get("location")
+    lat, lon = request.query_params.get("lat"), request.query_params.get("lon")
+    coords = sv.Coords(lat, lon) if lat and lon else None
+    duration_days = int(request.query_params.get("duration_days", 7))
+    if not location and not coords:
         return Response(
             {"error": "Either city_name or coords must be provided"}, status=status.HTTP_400_BAD_REQUEST
         )
     try:
-        forecast, city = service.get_forecast(forecast_days, SearchHistory(request), city_name, coords)
+        forecast, city = service.get_daily_forecast(
+            duration_days, SearchHistory(request), location, coords
+        )
     except api_client.CoordinatesNotFoundError:
         return Response(
-            {"error": f"city with name {city_name} not found"}, status=status.HTTP_404_NOT_FOUND
+            {"error": f"Unknown city with name {location}. Can't found coordinates."},
+            status=status.HTTP_404_NOT_FOUND,
         )
     except api_client.GettingCoordinatesError:
         return Response(
-            {"error": f"Can't get coordinates for city {city_name}. Please try again later."},
+            {"error": f"Can't get coordinates for city {location}. Please try again later."},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
     except sv.ForecastServiceError as e:
         logger.exception("get_forecast_view: %s", e)
-        msg = e.args[0] if len(e.args) > 0 else server_err_response.data
+        msg = e.args[0] if len(e.args) > 0 else "Can't get forecast. Please try again later."
         return Response({"error": msg}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    except (api_client.ForecastApiError, Exception) as e:
+    return Response({"forecast": forecast, "location": city})
+
+
+@api_view()
+def hourly_forecast_view(request: Request, date: str) -> Response:
+    service = deps.get_forecast_service()
+    location = request.query_params.get("location")
+    lat, lon = request.query_params.get("lat"), request.query_params.get("lon")
+    raw_date = date
+    try:
+        date = datetime.fromisoformat(date)
+    except ValueError:
+        logger.error("Incorrect date format: %s", raw_date)
+        return Response(
+            {"error": "Incorrect date format. Expected format: YYYY-MM-DDTHH:MM"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    coords = sv.Coords(lat, lon) if lat and lon else None
+    if not location and not coords:
+        return Response(
+            {"error": "Either city_name or coords must be provided"}, status=status.HTTP_400_BAD_REQUEST
+        )
+    try:
+        forecast, city = service.get_hourly_forecast_for_date(date, location, coords)
+    except api_client.CoordinatesNotFoundError:
+        return Response(
+            {"error": f"Unknown city with name {location}. Can't found coordinates."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+    except api_client.GettingCoordinatesError:
+        return Response(
+            {"error": f"Can't get coordinates for city {location}. Please try again later."},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+    except sv.ForecastServiceError as e:
         logger.exception("get_forecast_view: %s", e)
-        return server_err_response
-    return Response({"forecast": forecast, "city": city})
+        msg = e.args[0] if len(e.args) > 0 else "Can't get forecast. Please try again later."
+        return Response({"error": msg}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    return Response({"forecast": forecast, "location": city, "date": raw_date})
 
 
 class CitiesCountView(generics.ListAPIView):

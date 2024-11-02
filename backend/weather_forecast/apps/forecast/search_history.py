@@ -12,7 +12,7 @@ class SearchHistory:
             history = self.session[settings.FORECAST_HISTORY_SESSION_KEY] = []
         self._history = history
 
-    def add(self, city_name: str) -> None:
+    def push(self, city_name: str) -> None:
         if city_name not in self._history:
             print(f"adding {city_name} to history")
             self._history.append(city_name)
