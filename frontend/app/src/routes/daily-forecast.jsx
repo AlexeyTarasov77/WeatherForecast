@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
-import HistoryIcon from './assets/recent-icon.svg?react';
-import { Layout } from './components/layout'
-import { UiModal, UiButton, WeatherItem, Autocomplete, ListItem } from './components'
+import HistoryIcon from '../assets/recent-icon.svg?react';
+import { Layout } from '../components/layout'
+import { UiModal, UiButton, WeatherItem, Autocomplete, ListItem } from '../components'
 import axios from 'axios'
+import { serverURL } from '../constants';
 
 
-export default function App() {
-  const serverURL = 'http://localhost:8000'
+export function DailyForecast() {
   const [weatherData, setWeatherData] = useState(null);
   const [error, setError] = useState(null);
   const [lastViewedCity, setLastViewedCity] = useState(null);
@@ -31,7 +31,7 @@ export default function App() {
   }
 
   const getForecastByCity = async (cityName) => {
-    await axios.get(serverURL + '/forecast/', { params: { city_name: cityName }, withCredentials: true })
+    await axios.get(serverURL + '/forecast/daily/', { params: { location: cityName }, withCredentials: true })
     .then((resp) => {
       setWeatherData(resp.data)
       setError(null);
@@ -72,14 +72,14 @@ export default function App() {
     e.preventDefault()
     const data = new FormData(e.target)
     const cityName = data.get('city_name')
-    if (cityName && cityName != weatherData?.city) {
+    if (cityName && cityName != weatherData?.location) {
       await getForecastByCity(cityName)
     }
   }
 
   const formatWeatherData = (data) => {
     const formattedData = {location: data.city, forecast: []};
-    for (const [date, forecast] of Object.entries(data.daily)) {
+    for (const [date, forecast] of Object.entries(data.forecast)) {
       formattedData.forecast.push({
         date: new Date(date),
         ...forecast
@@ -141,7 +141,7 @@ export default function App() {
                 <ListItem key={index} onClick={(e) => {
                   const ul = e.target.closest('ul#search-history')
                   ul.classList.remove('hidden')
-                  if (obj.city_name !== weatherData?.city) {
+                  if (obj.city_name !== weatherData?.location) {
                     ul.classList.add('hidden')
                     const input = ul.parentNode.querySelector('input[name="city_name"]')
                     input.value = obj.city_name
@@ -203,10 +203,10 @@ export default function App() {
       {error && <p className="text-red-500 text-2xl mt-3">{error}</p>}
       {weatherData && (
         <div className='my-5'>
-          <h3 className="text-2xl mb-3">Прогноз погоды в городе {weatherData.city} на ближайшее время.</h3>
+          <h3 className="text-2xl mb-3">Прогноз погоды в городе {weatherData.location} на ближайшее время.</h3>
           <div className="weather-container flex gap-3 flex-wrap justify-center">
             {formatWeatherData(weatherData).forecast.map((item, index) => (
-              <WeatherItem key={index} forecastItem={item}/>
+              <WeatherItem key={index} forecast={item} location={weatherData.location}/>
             ))}
           </div>
         </div>

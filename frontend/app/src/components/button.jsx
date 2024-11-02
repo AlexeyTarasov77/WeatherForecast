@@ -9,7 +9,7 @@ import clsx from "clsx";
 * }} props
 */
 
-export function UiButton({ className, children, size="md", variant, onClick, disabled }) {
+export function UiButton({ className, children, size="md", variant="primary", onClick, disabled }) {
     const buttonClassName = clsx(
         "transition-colors",
         disabled && "opacity-50 cursor-not-allowed",
